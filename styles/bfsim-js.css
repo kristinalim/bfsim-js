@@ -1,0 +1,48 @@
+body {
+	font-family: Arial,sans;
+	font-size: 0.8em;
+}
+
+table {
+	font-family: Arial,sans;
+	font-size: 0.9em;
+}
+
+table.memory_contents {
+	width: 100%;
+	margin: 5px 0px 5px 0px;
+	padding: 0px;
+
+	border: 1px solid #909090;
+	background-color: #E0E0E0;
+}
+
+table.memory_contents tr td {
+	width: 6%;
+	margin: 0px;
+	padding: 0px;
+
+	border: 0px;
+	text-align: center;
+}
+
+tr.head {
+	color: #E0E0E0;
+	background-color: #101010;
+}
+
+tr.head td.highlight {
+	background-color: #404040;
+}
+
+td.highlight {
+	background-color: #808080;
+}
+
+.box {
+	padding: 10px;
+	margin: 10px;
+
+	border: 1px solid #606060;
+	background-color: #D0D0D0;
+}

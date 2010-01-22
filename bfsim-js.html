@@ -1,0 +1,274 @@
+<html>
+	<head>
+		<title>bfsim-js</title>
+
+		<link rel="stylesheet" type="text/css" href="styles/bfsim-js.css">
+		<script language="JavaScript">
+			function initialize() {
+				// Enable and disable form input
+				set_form_disabled(document.form_preferences, false);
+				set_form_disabled(document.form_memory, true);
+			}
+
+			function simulation_initialize() {
+				// Set default values
+				window.memory_pointer = 0;
+				window.instruction_pointer = 0;
+
+				// Clear text fields
+				document.form_memory.input.value = "";
+				document.form_memory.output.value = "";
+
+				// Store data from the form
+				window.instruction = document.form_preferences.instruction.value;
+				window.memory_length = document.form_preferences.memory_length.value;
+				window.memory = new Array(window.memory_length);
+
+				// Initialize the contents of memory
+				for (i = 0; i < window.memory_length; i ++) {
+					window.memory[i] = 0;
+				}
+			}
+
+			function simulation_begin() {
+				// Create table cells for memory address
+				window.cell_memory_address = new Array(window.memory_length);
+
+				for (i = 0; i < window.memory_length; i ++) {
+					window.cell_memory_address[i] = document.createElement("td");
+					window.cell_memory_address[i].appendChild(document.createTextNode(i));
+				}
+
+				// Create table cells for memory value
+				window.cell_memory_value = new Array(window.memory_length);
+
+				for (i = 0; i < window.memory_length; i ++) {
+					window.cell_memory_value[i] = document.createElement("td");
+					window.cell_memory_value[i].appendChild(document.createTextNode(window.memory[i]));
+				}
+
+				// Print contents of memory
+				for (i = 0; i < window.memory_length; i += 16) {
+					current_table = document.createElement("table");
+					current_table.setAttribute("class", "memory_contents");
+					current_row = document.createElement("tr");
+					current_row.setAttribute("class", "head");
+
+					for (j = 0; j < 16; j ++) {
+						if ((i + j) < window.memory_length) {
+							current_row.appendChild(window.cell_memory_address[i + j]);
+						} else {
+							temp_cell = document.createElement("td");
+							temp_cell.appendChild(document.createTextNode(" "));
+							current_row.appendChild(temp_cell);
+						}
+					}
+
+					current_table.appendChild(current_row);
+					current_row = document.createElement("tr");
+
+					for (j = 0; j < 16; j ++) {
+						if (i + j < window.memory_length) {
+							current_row.appendChild(window.cell_memory_value[i + j]);
+						} else {
+							temp_cell = document.createElement("td");
+							temp_cell.appendChild(document.createTextNode(" "));
+							current_row.appendChild(temp_cell);
+						}
+					}
+
+					current_table.appendChild(current_row);
+					document.getElementById("div_byte_blocks").appendChild(current_table);
+				}
+
+				// Highlight initial memory position and value
+				window.cell_memory_address[window.memory_pointer].setAttribute("class", "highlight");
+				window.cell_memory_value[window.memory_pointer].setAttribute("class", "highlight");
+
+				// Toggle enabled form
+				set_form_disabled(document.form_preferences, true);
+				set_form_disabled(document.form_memory, false);
+			}
+
+			function simulation_step() {
+				if (window.instruction.charAt(window.instruction_pointer) == '>') {
+					pointer_previous = window.memory_pointer;
+					window.memory_pointer = (window.memory_pointer + 1) % window.memory_length;
+					window.instruction_pointer ++;
+
+					// Move highlight from previous to current memory position and value
+					memory_cells_highlight_move(pointer_previous, window.memory_pointer);
+				} else if (window.instruction.charAt(window.instruction_pointer) == '<') {
+					pointer_previous = window.memory_pointer;
+					window.memory_pointer = (window.memory_pointer + (window.memory_length - 1)) % window.memory_length;
+					window.instruction_pointer ++;
+
+					// Move highlight from previous to current memory position and value
+					memory_cells_highlight_move(pointer_previous, window.memory_pointer);
+				} else if (window.instruction.charAt(window.instruction_pointer) == '+') {
+					window.memory[window.memory_pointer] = (window.memory[window.memory_pointer] + 1) % 256;
+					window.instruction_pointer ++;
+
+					// Reload value into table cell
+					tree_clear(window.cell_memory_value[window.memory_pointer]);
+					window.cell_memory_value[window.memory_pointer].appendChild(document.createTextNode(window.memory[window.memory_pointer]));
+				} else if (window.instruction.charAt(window.instruction_pointer) == '-') {
+					window.memory[window.memory_pointer] = (window.memory[window.memory_pointer] + 255) % 256;
+					window.instruction_pointer ++;
+
+					// Reload value into table cell
+					tree_clear(window.cell_memory_value[window.memory_pointer]);
+					window.cell_memory_value[window.memory_pointer].appendChild(document.createTextNode(window.memory[window.memory_pointer]));
+				} else if (window.instruction.charAt(window.instruction_pointer) == '[') {
+					if (window.memory[window.memory_pointer] == 0) {
+						i = 0;
+						window.instruction_pointer ++;
+
+						while ((window.instruction.charAt(window.instruction_pointer) != ']') || (i != 0)) {
+							if (window.instruction.charAt(window.instruction_pointer) == ']') {
+								i --;
+							} else if (window.instruction.charAt(window.instruction_pointer) == '[') {
+								i ++;
+							}
+
+							window.instruction_pointer ++;
+						}
+					}
+
+					window.instruction_pointer ++;
+				} else if (window.instruction.charAt(window.instruction_pointer) == ']') {
+					i = 0;
+					window.instruction_pointer --;
+
+					while ((window.instruction.charAt(window.instruction_pointer) != '[') || (i != 0)) {
+						if (window.instruction.charAt(window.instruction_pointer) == ']') {
+							i ++;
+						} else if (window.instruction.charAt(window.instruction_pointer) == '[') {
+							i --;
+						}
+
+						window.instruction_pointer --;
+					}
+				} else if (window.instruction.charAt(window.instruction_pointer) == '.') {
+					window.instruction_pointer ++;
+
+					document.form_memory.output.value = document.form_memory.output.value + String.fromCharCode(window.memory[window.memory_pointer]);
+				} else if (window.instruction.charAt(window.instruction_pointer) == ',') {
+					if (document.form_memory.input.value.length == 0) {
+						alert("Enter a character in the input buffer.");
+
+						return 0;
+					} else {
+						window.instruction_pointer ++;
+
+						// Store input character
+						window.memory[window.memory_pointer] = document.form_memory.input.value.charCodeAt(0) % 256;
+						
+						// Reload value into table cell
+						tree_clear(window.cell_memory_value[window.memory_pointer]);
+						window.cell_memory_value[window.memory_pointer].appendChild(document.createTextNode(window.memory[window.memory_pointer]));
+
+						document.form_memory.input.value = document.form_memory.input.value.substring(1);
+					}
+				} else {
+					window.instruction_pointer ++;
+				}
+
+				if ((window.instruction_pointer < 0) || (window.instruction_pointer >= window.instruction.length)) {
+					set_form_disabled(document.form_memory, 1);
+					document.form_memory.terminate.disabled = 0;
+
+					return 0;
+				}
+
+				return 1;
+			}
+
+			function simulation_terminate() {
+				// Deallocate arrays
+				window.memory = null;
+				window.cell_memory_address = null;
+				window.cell_memory_value = null;
+
+				// Remove previous memory tables
+				tree_clear(document.getElementById("div_byte_blocks"));
+
+				// Clear text fields
+				document.form_memory.input.value = "";
+				document.form_memory.output.value = "";
+
+				// Toggle enabled form
+				set_form_disabled(document.form_preferences, false);
+				set_form_disabled(document.form_memory, true);
+			}
+
+			function memory_cells_highlight_move(index_previous, index_current) {
+				// Remove highlight from previous memory position and value
+				window.cell_memory_address[index_previous].removeAttribute("class", "highlight");
+				window.cell_memory_value[index_previous].removeAttribute("class", "highlight");
+
+				// Highlight current memory position and value
+				window.cell_memory_address[index_current].setAttribute("class", "highlight");
+				window.cell_memory_value[index_current].setAttribute("class", "highlight");
+			}
+
+			function set_form_disabled(form, disabled) {
+				// Disable all form elements in form
+				for (i = 0; i < form.elements.length; i ++) {
+					form.elements[i].disabled = disabled;
+				}
+			}
+
+			function tree_clear(tree) {
+				while (tree.childNodes.length > 0) {
+					tree.removeChild(tree.childNodes[0]);
+				}
+			}
+		</script>
+
+		<strong>bfsim-js</strong><br>
+		A JavaScript graphical brainfuck interpreter<br><br>
+
+		<div class="box" name="div_preferences">
+			<form name="form_preferences">
+				<table name="table_preferences">
+					<tbody><tr>
+						<td>Memory length:</td>
+						<td colspan="2"><input name="memory_length" value="1024" type="text"></td>
+					</tr>
+					<tr>
+						<td>Instruction:</td>
+						<td colspan="2"><textarea name="instruction" rows="4" cols="30" value=""></textarea></td>
+					</tr>
+					<tr>
+						<td> </td>
+						<td colspan="2"><input name="begin" value="Simulate" onclick="simulation_initialize(); simulation_begin();" type="button"></td>
+					</tr>
+				</tbody></table>
+			</form>
+		</div>
+
+		<div class="box" name="div_memory">
+			<form name="form_memory">
+				<table name="table_memory">
+					<tbody><tr>
+						<td colspan="3"><input disabled="disabled" name="step" value="Step" onclick="simulation_step();" type="button"> <input disabled="disabled" name="end" value="Complete" onclick="while (simulation_step()) ;" type="button"> <input disabled="disabled" name="terminate" value="Terminate" onclick="simulation_terminate();" type="button"></td>
+					</tr>
+					<tr>
+						<td>Input Buffer:</td>
+						<td colspan="2"><input disabled="disabled" name="input" value="" type="text"></td>
+					</tr>
+					<tr>
+						<td>Output:</td>
+						<td colspan="2" nowrap="nowrap"><textarea disabled="disabled" name="output"></textarea></td>
+					</tr>
+				</tbody></table>
+			</form>
+
+			<div name="div_byte_blocks" id="div_byte_blocks"></div>
+		</div>
+		<script language="javascript">
+			initialize();
+		</script>
+	</body>
+</html>
